@@ -108,6 +108,7 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 			int start_pos = current_read;
 			int read_size = (current_read+RECEIVE_BUFFER_SIZE)>total_read?(total_read-current_read):RECEIVE_BUFFER_SIZE;
 			ssize_t tRead = recv(watcher.fd, szBuffer+start_pos, read_size, 0);
+			
 			if(tRead == 0)
 			{
 				break;
@@ -121,6 +122,7 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 					break;
 				}
 			}
+			
 			nRead += tRead;
 			current_read += tRead;
 			if( (0 == has_get_len) && (nRead >= sizeof(sSubmitData)) )
@@ -137,11 +139,11 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 					szBuffer = (char *)malloc(buffer_size);
 					memcpy(szBuffer, p_buf, nRead);
 					free(p_buf);
-					has_get_len = 1;
 				}else
 				{
 					break;
 				}	
+				has_get_len = 1;
 			}
 		}while(current_read<total_read);
 		

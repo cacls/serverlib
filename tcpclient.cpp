@@ -108,6 +108,8 @@ bool CTcpClient::__Connect()
 	m_Io.stop();
 	m_Io.start(m_Socket, ev::READ|ev::WRITE);
 
+	m_pDataHandle->OnConnected(m_SocketClient);
+	
 	return true;
 }
 

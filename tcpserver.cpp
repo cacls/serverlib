@@ -133,15 +133,16 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 				int total_block = (total_len+RECEIVE_BUFFER_SIZE-1)/RECEIVE_BUFFER_SIZE;
 				
 				size_t buffer_size = total_block*RECEIVE_BUFFER_SIZE;
-				if((buffer_size >=RECEIVE_BUFFER_SIZE*2) && (buffer_size <= MAX_RECEIVE_BUFFER))
+				if(buffer_size >= MAX_RECEIVE_BUFFER)
+				{
+					break;
+				}
+				else if(buffer_size >= RECEIVE_BUFFER_SIZE*2)
 				{
 					char *p_buf = szBuffer;
 					szBuffer = (char *)malloc(buffer_size);
 					memcpy(szBuffer, p_buf, nRead);
 					free(p_buf);
-				}else
-				{
-					break;
 				}	
 				has_get_len = 1;
 			}

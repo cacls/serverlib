@@ -2,6 +2,8 @@
 
 
 #define WRITE_QUEUE_MAX_SIZE	1000000
+#define RECEIVE_BUFFER_SIZE 	4096
+#define MAX_RECEIVE_BUFFER  	4096000
 
 static void __SetNonblock(int fd)
 {
@@ -88,10 +90,56 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 
 	if (revents & EV_READ)
 	{
-		char szBuffer[4096];
-
-		ssize_t nRead = recv(watcher.fd, szBuffer, sizeof(szBuffer), 0);
-
+		char *szBuffer = (char *)malloc(RECEIVE_BUFFER_SIZE*2);
+		ssize_t nRead = 0;
+		
+		unsigned int total_read = RECEIVE_BUFFER_SIZE;
+		unsigned int current_read = 0;
+		unsigned int has_get_len = 0;
+		do
+		{
+			int start_pos = current_read;
+			int read_size = (current_read+RECEIVE_BUFFER_SIZE)>total_read?(total_read-current_read):RECEIVE_BUFFER_SIZE;
+			ssize_t tRead = recv(watcher.fd, szBuffer+start_pos, read_size, 0);
+			if(tRead == 0)
+			{
+				break;
+			}else if(tRead < 0)
+			{
+				if(errno == EAGAIN)
+				{
+					continue;
+				}else
+				{
+					break;
+				}
+			}
+			nRead += tRead;
+			current_read += tRead;
+			if( (0 == has_get_len) && (nRead >= sizeof(sSubmitData)) )
+			{
+				sSubmitData* p_sub = (sSubmitData*)szBuffer;
+				size_t total_len = sizeof(sSubmitData)+p_sub->cLen;
+				total_read = total_len;
+				int total_block = (total_len+RECEIVE_BUFFER_SIZE-1)/RECEIVE_BUFFER_SIZE;
+				
+				size_t buffer_size = total_block*RECEIVE_BUFFER_SIZE;
+				if(buffer_size <= MAX_RECEIVE_BUFFER)
+				{
+					char *p_buf = szBuffer;
+					szBuffer = (char *)malloc(buffer_size);
+					memcpy(szBuffer, p_buf, nRead);
+					free(p_buf);
+					has_get_len = 1;
+				}else
+				{
+					std::cout<<"[__server_lib__]too big data. disconnect?"<<std::endl;
+					break;
+				}	
+			}
+		}while(current_read<total_read);
+		
+		
 		if (nRead == 0) 
 		{
 			m_pTcpServer->OnClientDisconnected(m_SocketClient, 0);
@@ -105,15 +153,19 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 			}
 			else
 			{
+			
 				m_pTcpServer->OnClientRecvError(m_SocketClient, errno);
 				return;
 			}
-		}
-		else
+		
+			
+		}else
 		{
 			m_nLasttime = (int)time(0);
 			m_pTcpServer->OnClientDataReceived(m_SocketClient, szBuffer, nRead);
 		}
+		
+		free(szBuffer);
 	}
 
 	if (revents & EV_WRITE)

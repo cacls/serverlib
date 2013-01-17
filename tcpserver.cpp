@@ -96,6 +96,13 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 		unsigned int total_read = RECEIVE_BUFFER_SIZE;
 		unsigned int current_read = 0;
 		unsigned int has_get_len = 0;
+		
+		struct sSubmitData
+		{
+			unsigned int cLen;
+			void *cData(){return this+1};
+		};
+		
 		do
 		{
 			int start_pos = current_read;
@@ -124,7 +131,7 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 				int total_block = (total_len+RECEIVE_BUFFER_SIZE-1)/RECEIVE_BUFFER_SIZE;
 				
 				size_t buffer_size = total_block*RECEIVE_BUFFER_SIZE;
-				if(buffer_size <= MAX_RECEIVE_BUFFER)
+				if((buffer_size >=RECEIVE_BUFFER_SIZE*2) && (buffer_size <= MAX_RECEIVE_BUFFER))
 				{
 					char *p_buf = szBuffer;
 					szBuffer = (char *)malloc(buffer_size);
@@ -133,7 +140,6 @@ void CTcpConnection::__IoCallback(ev::io &watcher, int revents)
 					has_get_len = 1;
 				}else
 				{
-					std::cout<<"[__server_lib__]too big data. disconnect?"<<std::endl;
 					break;
 				}	
 			}
